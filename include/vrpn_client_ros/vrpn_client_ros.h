@@ -98,7 +98,8 @@ namespace vrpn_client_ros
     /**
       * Ciruclar buffer to generate velocities
      */
-    static CVG_BlockDiagram::FilteredDerivativeWCB filtered_derivative_wcb_x_, filtered_derivative_wcb_y_, filtered_derivative_wcb_z_;
+    static std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> filtered_derivative_wcb_x_, filtered_derivative_wcb_y_, filtered_derivative_wcb_z_;
+    static std::vector<std::string> tracker_names_;
 
     void init(std::string tracker_name, ros::NodeHandle nh, bool create_mainloop_timer);
 
@@ -109,9 +110,10 @@ namespace vrpn_client_ros
     static void VRPN_CALLBACK handle_accel(void *userData, const vrpn_TRACKERACCCB tracker_accel);
   };
 
-  CVG_BlockDiagram::FilteredDerivativeWCB VrpnTrackerRos::filtered_derivative_wcb_x_;
-  CVG_BlockDiagram::FilteredDerivativeWCB VrpnTrackerRos::filtered_derivative_wcb_y_;
-  CVG_BlockDiagram::FilteredDerivativeWCB VrpnTrackerRos::filtered_derivative_wcb_z_;
+  std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::filtered_derivative_wcb_x_;
+  std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::filtered_derivative_wcb_y_;
+  std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::filtered_derivative_wcb_z_;
+  std::vector<std::string> VrpnTrackerRos::tracker_names_;
 
   class VrpnClientRos
   {
