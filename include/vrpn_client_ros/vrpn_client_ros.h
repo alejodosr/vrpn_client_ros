@@ -46,6 +46,10 @@
 #include <string>
 #include <unordered_map>
 
+#include "LowPassFilter.h"
+#include "filtered_derivative_wcb.h"
+#include <nav_msgs/Odometry.h>
+
 namespace vrpn_client_ros
 {
 
@@ -86,9 +90,15 @@ namespace vrpn_client_ros
     ros::Timer mainloop_timer;
 
     geometry_msgs::PoseStamped pose_msg_;
+    nav_msgs::Odometry pose_and_velocity_msg_;
     geometry_msgs::TwistStamped twist_msg_;
     geometry_msgs::AccelStamped accel_msg_;
     geometry_msgs::TransformStamped transform_stamped_;
+
+    /**
+      * Ciruclar buffer to generate velocities
+     */
+    static CVG_BlockDiagram::FilteredDerivativeWCB filtered_derivative_wcb_x_, filtered_derivative_wcb_y_, filtered_derivative_wcb_z_;
 
     void init(std::string tracker_name, ros::NodeHandle nh, bool create_mainloop_timer);
 
@@ -98,6 +108,10 @@ namespace vrpn_client_ros
 
     static void VRPN_CALLBACK handle_accel(void *userData, const vrpn_TRACKERACCCB tracker_accel);
   };
+
+  CVG_BlockDiagram::FilteredDerivativeWCB VrpnTrackerRos::filtered_derivative_wcb_x_;
+  CVG_BlockDiagram::FilteredDerivativeWCB VrpnTrackerRos::filtered_derivative_wcb_y_;
+  CVG_BlockDiagram::FilteredDerivativeWCB VrpnTrackerRos::filtered_derivative_wcb_z_;
 
   class VrpnClientRos
   {
@@ -138,6 +152,7 @@ namespace vrpn_client_ros
     TrackerMap trackers_;
 
     ros::Timer refresh_tracker_timer_, mainloop_timer;
+
   };
 }  // namespace vrpn_client_ros
 

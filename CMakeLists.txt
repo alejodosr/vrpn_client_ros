@@ -15,6 +15,7 @@ set_directory_properties(PROPERTIES COMPILE_OPTIONS "-std=c++11;-Wall")
 
 include_directories(
   include
+  include/vrpn_client_ros
   ${catkin_INCLUDE_DIRS}
   ${VRPN_INCLUDE_DIR}
 )
@@ -28,7 +29,7 @@ target_link_libraries(vrpn_client_ros
 )
 
 add_executable(vrpn_tracker_node
-  src/vrpn_tracker_node.cpp)
+  src/vrpn_tracker_node.cpp src/LowPassFilter.cpp src/filtered_derivative_wcb.cpp)
 add_dependencies(vrpn_tracker_node vrpn_client_ros)
 target_link_libraries(vrpn_tracker_node
   vrpn_client_ros
@@ -36,7 +37,7 @@ target_link_libraries(vrpn_tracker_node
 )
 
 add_executable(vrpn_client_node
-  src/vrpn_client_node.cpp)
+  src/vrpn_client_node.cpp src/LowPassFilter.cpp src/filtered_derivative_wcb.cpp)
 add_dependencies(vrpn_client_node vrpn_client_ros)
 target_link_libraries(vrpn_client_node
   vrpn_client_ros

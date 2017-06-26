@@ -88,6 +88,15 @@ namespace vrpn_client_ros
 
     pose_msg_.header.frame_id = twist_msg_.header.frame_id = accel_msg_.header.frame_id = transform_stamped_.header.frame_id = frame_id;
 
+    // Init ciruclar buffer
+    VrpnTrackerRos::filtered_derivative_wcb_x_.setTimeParameters( 0.0015,0.0015,0.150,1.0,100.000);
+    VrpnTrackerRos::filtered_derivative_wcb_y_.setTimeParameters( 0.0015,0.0015,0.150,1.0,100.000);
+    VrpnTrackerRos::filtered_derivative_wcb_z_.setTimeParameters( 0.0015,0.0015,0.150,1.0,100.000);
+
+    VrpnTrackerRos::filtered_derivative_wcb_x_.reset();
+    VrpnTrackerRos::filtered_derivative_wcb_y_.reset();
+    VrpnTrackerRos::filtered_derivative_wcb_z_.reset();
+
     if (create_mainloop_timer)
     {
       double update_frequency;
@@ -132,7 +141,9 @@ namespace vrpn_client_ros
 
     if (pose_pub->getTopic().empty())
     {
-      *pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 1);
+//      *pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 1);
+        *pose_pub = nh.advertise<nav_msgs::Odometry>("pose", 1);
+
     }
 
     if (pose_pub->getNumSubscribers() > 0)
@@ -156,7 +167,47 @@ namespace vrpn_client_ros
       tracker->pose_msg_.pose.orientation.z = tracker_pose.quat[2];
       tracker->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
 
-      pose_pub->publish(tracker->pose_msg_);
+      // Compute speeds from pose ground truth
+      ros::Time current_timestamp = ros::Time::now();
+
+      double x_raw_t = tracker_pose.pos[0];
+      double y_raw_t = tracker_pose.pos[1];
+      double z_raw_t = tracker_pose.pos[2];
+
+      time_t tv_sec; suseconds_t tv_usec;
+      {
+      tv_sec  = current_timestamp.sec;
+      tv_usec = current_timestamp.nsec / 1000.0;
+      VrpnTrackerRos::filtered_derivative_wcb_x_.setInput( x_raw_t, tv_sec, tv_usec);
+      VrpnTrackerRos::filtered_derivative_wcb_y_.setInput( y_raw_t, tv_sec, tv_usec);
+      VrpnTrackerRos::filtered_derivative_wcb_z_.setInput( z_raw_t, tv_sec, tv_usec);
+      }
+
+      double x_t, dx_t;
+      double y_t, dy_t;
+      double z_t, dz_t;
+      VrpnTrackerRos::filtered_derivative_wcb_x_.getOutput( x_t,  dx_t);
+      VrpnTrackerRos::filtered_derivative_wcb_y_.getOutput( y_t,  dy_t);
+      VrpnTrackerRos::filtered_derivative_wcb_y_.getOutput( z_t,  dz_t);
+
+      // Publish velocities
+      tracker->pose_and_velocity_msg_.header.stamp = ros::Time::now();
+      tracker->pose_and_velocity_msg_.header.frame_id = "mocap_world";
+
+      tracker->pose_and_velocity_msg_.pose.pose.position.x = tracker_pose.pos[0];
+      tracker->pose_and_velocity_msg_.pose.pose.position.y = tracker_pose.pos[1];
+      tracker->pose_and_velocity_msg_.pose.pose.position.z = tracker_pose.pos[2];
+
+      tracker->pose_and_velocity_msg_.pose.pose.orientation.x = tracker_pose.quat[0];
+      tracker->pose_and_velocity_msg_.pose.pose.orientation.y = tracker_pose.quat[1];
+      tracker->pose_and_velocity_msg_.pose.pose.orientation.z = tracker_pose.quat[2];
+      tracker->pose_and_velocity_msg_.pose.pose.orientation.w = tracker_pose.quat[3];
+
+      tracker->pose_and_velocity_msg_.twist.twist.linear.x = dx_t;
+      tracker->pose_and_velocity_msg_.twist.twist.linear.y = dy_t;
+      tracker->pose_and_velocity_msg_.twist.twist.linear.z = dz_t;
+
+      pose_pub->publish(tracker->pose_and_velocity_msg_);
     }
 
     if (tracker->broadcast_tf_)
