@@ -3,6 +3,18 @@ project(vrpn_client_ros)
 
 find_package(catkin REQUIRED COMPONENTS geometry_msgs roscpp roslaunch roslint tf2_ros)
 find_package(VRPN REQUIRED)
+find_package(Eigen3)
+if(NOT EIGEN3_FOUND)
+  # Fallback to cmake_modules
+  find_package(cmake_modules REQUIRED)
+  find_package(Eigen REQUIRED)
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
+  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
+  # Possibly map additional variables to the EIGEN3_ prefix.
+  message(WARN "Using Eigen2!")
+else()
+  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+endif()
 
 catkin_package(
   INCLUDE_DIRS include

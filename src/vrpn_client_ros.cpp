@@ -38,6 +38,13 @@
 #include <vector>
 #include <unordered_set>
 
+#define BODY_FRAME_VELOCITIES   // Define it to compute velocities in body frame
+
+#ifdef BODY_FRAME_VELOCITIES
+#include <eigen3/Eigen/Dense>
+#include <tf/tf.h>
+#endif
+
 namespace
 {
 std::unordered_set<std::string> name_blacklist_({"VRPN Control"});
@@ -134,7 +141,6 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
     {
         //      *pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 1);
         *pose_pub = nh.advertise<nav_msgs::Odometry>("pose", 1);
-
     }
 
     if (pose_pub->getNumSubscribers() > 0)
@@ -188,9 +194,9 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
             }
 
             // Init ciruclar buffer
-            VrpnTrackerRos::filtered_derivative_wcb_x_[index_i].setTimeParameters( 0.0015,0.0015,0.150,1.0,100.000);
-            VrpnTrackerRos::filtered_derivative_wcb_y_[index_i].setTimeParameters( 0.0015,0.0015,0.150,1.0,100.000);
-            VrpnTrackerRos::filtered_derivative_wcb_z_[index_i].setTimeParameters( 0.0015,0.0015,0.150,1.0,100.000);
+            VrpnTrackerRos::filtered_derivative_wcb_x_[index_i].setTimeParameters( 0.005,0.005,0.200,1.0,100.000);
+            VrpnTrackerRos::filtered_derivative_wcb_y_[index_i].setTimeParameters( 0.005,0.005,0.200,1.0,100.000);
+            VrpnTrackerRos::filtered_derivative_wcb_z_[index_i].setTimeParameters( 0.005,0.005,0.200,1.0,100.000);
 
             VrpnTrackerRos::filtered_derivative_wcb_x_[index_i].reset();
             VrpnTrackerRos::filtered_derivative_wcb_y_[index_i].reset();
@@ -222,6 +228,47 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
         VrpnTrackerRos::filtered_derivative_wcb_x_[index_i].getOutput( x_t,  dx_t);
         VrpnTrackerRos::filtered_derivative_wcb_y_[index_i].getOutput( y_t,  dy_t);
         VrpnTrackerRos::filtered_derivative_wcb_z_[index_i].getOutput( z_t,  dz_t);
+
+#ifdef BODY_FRAME_VELOCITIES
+        // Converting to Body
+        /* Calculating Roll, Pitch, Yaw */
+        tf::Quaternion q(tracker_pose.quat[0], tracker_pose.quat[1], tracker_pose.quat[2], tracker_pose.quat[3]);
+        tf::Matrix3x3 m(q);
+
+        //convert quaternion to euler angels
+        double y, p, r;
+        m.getEulerYPR(y, p, r);
+
+        if( y < 0 )
+              y = (2*M_PI) + y;
+
+        Eigen::Vector3f BodyFrame;
+        Eigen::Vector3f GlobalFrame;
+        Eigen::Matrix3f RotationMat;
+
+        GlobalFrame(0) = (+1)*dx_t;
+        GlobalFrame(1) = (+1)*dy_t;
+        GlobalFrame(2) = 0;
+
+        RotationMat(0,0) = cos(y);
+        RotationMat(1,0) = -sin(y);
+        RotationMat(2,0) = 0;
+
+        RotationMat(0,1) = sin(y);
+        RotationMat(1,1) = cos(y);
+        RotationMat(2,1) = 0;
+
+        RotationMat(0,2) = 0;
+        RotationMat(1,2) = 0;
+        RotationMat(2,2) = 1;
+
+        BodyFrame = RotationMat*GlobalFrame;
+
+        //std::cout << "X velocity: " << BodyFrame(0) << "   Y velocity: " << BodyFrame(1) << std::endl;
+
+        dx_t  = (+1) * BodyFrame(0);
+        dy_t  = (+1) * BodyFrame(1);
+#endif
 
         // Publish velocities
         tracker->pose_and_velocity_msg_.header.stamp = ros::Time::now();
