@@ -82,7 +82,7 @@ namespace vrpn_client_ros
 
   private:
     TrackerRemotePtr tracker_remote_;
-    std::vector<ros::Publisher> pose_pubs_, twist_pubs_, accel_pubs_;
+    std::vector<ros::Publisher> pose_pubs_, body_pose_pubs_, twist_pubs_, accel_pubs_;
     ros::NodeHandle output_nh_;
     bool use_server_time_, broadcast_tf_, process_sensor_id_;
     std::string tracker_name;
@@ -90,7 +90,7 @@ namespace vrpn_client_ros
     ros::Timer mainloop_timer;
 
     geometry_msgs::PoseStamped pose_msg_;
-    nav_msgs::Odometry pose_and_velocity_msg_;
+    nav_msgs::Odometry pose_and_velocity_msg_, body_pose_and_velocity_msg_;
     geometry_msgs::TwistStamped twist_msg_;
     geometry_msgs::AccelStamped accel_msg_;
     geometry_msgs::TransformStamped transform_stamped_;
@@ -100,6 +100,8 @@ namespace vrpn_client_ros
      */
     static std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> filtered_derivative_wcb_x_, filtered_derivative_wcb_y_, filtered_derivative_wcb_z_;
     static std::vector<std::string> tracker_names_;
+    static std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> body_filtered_derivative_wcb_x_, body_filtered_derivative_wcb_y_, body_filtered_derivative_wcb_z_;
+    static std::vector<std::string> body_tracker_names_;
 
     void init(std::string tracker_name, ros::NodeHandle nh, bool create_mainloop_timer);
 
@@ -114,6 +116,11 @@ namespace vrpn_client_ros
   std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::filtered_derivative_wcb_y_;
   std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::filtered_derivative_wcb_z_;
   std::vector<std::string> VrpnTrackerRos::tracker_names_;
+
+  std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::body_filtered_derivative_wcb_x_;
+  std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::body_filtered_derivative_wcb_y_;
+  std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::body_filtered_derivative_wcb_z_;
+  std::vector<std::string> VrpnTrackerRos::body_tracker_names_;
 
   class VrpnClientRos
   {
