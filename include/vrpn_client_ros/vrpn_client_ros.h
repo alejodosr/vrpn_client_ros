@@ -49,6 +49,7 @@
 #include "LowPassFilter.h"
 #include "filtered_derivative_wcb.h"
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Bool.h>
 
 namespace vrpn_client_ros
 {
@@ -82,7 +83,7 @@ namespace vrpn_client_ros
 
   private:
     TrackerRemotePtr tracker_remote_;
-    std::vector<ros::Publisher> pose_pubs_, body_pose_pubs_, twist_pubs_, accel_pubs_;
+    std::vector<ros::Publisher> pose_pubs_, body_pose_pubs_, twist_pubs_, accel_pubs_, dead_zone_pubs_;
     ros::NodeHandle output_nh_;
     bool use_server_time_, broadcast_tf_, process_sensor_id_;
     std::string tracker_name;
@@ -91,6 +92,7 @@ namespace vrpn_client_ros
 
     geometry_msgs::PoseStamped pose_msg_;
     nav_msgs::Odometry pose_and_velocity_msg_, body_pose_and_velocity_msg_;
+    std_msgs::Bool dead_zone_msg_;
     geometry_msgs::TwistStamped twist_msg_;
     geometry_msgs::AccelStamped accel_msg_;
     geometry_msgs::TransformStamped transform_stamped_;
@@ -102,6 +104,12 @@ namespace vrpn_client_ros
     static std::vector<std::string> tracker_names_;
     static std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> body_filtered_derivative_wcb_x_, body_filtered_derivative_wcb_y_, body_filtered_derivative_wcb_z_;
     static std::vector<std::string> body_tracker_names_;
+    static std::vector<std::string> dead_zone_tracker_names_;
+    static std::vector<int> dead_zone_counters_;
+    static std::vector<bool> dead_zones_;
+    static std::vector<ros::Time> previous_times_;
+    static const float MIN_FREQUENCY;
+    static const int MIN_COUNTER;
 
     void init(std::string tracker_name, ros::NodeHandle nh, bool create_mainloop_timer);
 
@@ -121,6 +129,14 @@ namespace vrpn_client_ros
   std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::body_filtered_derivative_wcb_y_;
   std::vector<CVG_BlockDiagram::FilteredDerivativeWCB> VrpnTrackerRos::body_filtered_derivative_wcb_z_;
   std::vector<std::string> VrpnTrackerRos::body_tracker_names_;
+
+  std::vector<ros::Time> VrpnTrackerRos::previous_times_;
+  std::vector<int> VrpnTrackerRos::dead_zone_counters_;
+  std::vector<bool> VrpnTrackerRos::dead_zones_;
+  std::vector<std::string> VrpnTrackerRos::dead_zone_tracker_names_;
+
+  const float VrpnTrackerRos::MIN_FREQUENCY = 10; // Hz
+  const int VrpnTrackerRos::MIN_COUNTER = 5;
 
   class VrpnClientRos
   {

@@ -118,7 +118,7 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
 {
     VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
 
-    ros::Publisher *pose_pub, *body_pose_pub;
+    ros::Publisher *pose_pub, *body_pose_pub, *dead_zone_pub;
     std::size_t sensor_index(0);
     ros::NodeHandle nh = tracker->output_nh_;
     
@@ -132,9 +132,12 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
     {
         tracker->pose_pubs_.resize(sensor_index + 1);
         tracker->body_pose_pubs_.resize(sensor_index + 1);
+        tracker->dead_zone_pubs_.resize(sensor_index + 1);
     }
+
     pose_pub = &(tracker->pose_pubs_[sensor_index]);
     body_pose_pub = &(tracker->body_pose_pubs_[sensor_index]);
+    dead_zone_pub = &(tracker->dead_zone_pubs_[sensor_index]);
 
     if (pose_pub->getTopic().empty())
     {
@@ -145,6 +148,11 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
     if (body_pose_pub->getTopic().empty())
     {
         *body_pose_pub = nh.advertise<nav_msgs::Odometry>("body_pose", 1);
+    }
+
+    if (dead_zone_pub->getTopic().empty())
+    {
+        *dead_zone_pub = nh.advertise<std_msgs::Bool>("dead_zone", 1);
     }
 
     if (pose_pub->getNumSubscribers() > 0)
@@ -417,6 +425,59 @@ void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKE
         body_pose_pub->publish(tracker->body_pose_and_velocity_msg_);
 
     }
+
+    // Find the frequency of the rigid body. This will inform about the visilbility of the markers
+    bool found = false;
+    unsigned int index_i = -1;
+    // Find tracker name
+    for(unsigned int i=0; i < VrpnTrackerRos::dead_zone_tracker_names_.size(); i++){
+        if (tracker->tracker_name.compare(VrpnTrackerRos::dead_zone_tracker_names_[i]) == 0){
+            found = true;
+            index_i = i;
+        }
+    }
+
+    if (!found){
+
+        // Insert new rigid body
+        VrpnTrackerRos::dead_zone_tracker_names_.push_back(tracker->tracker_name);
+        VrpnTrackerRos::previous_times_.push_back(ros::Time::now());
+        VrpnTrackerRos::dead_zone_counters_.push_back(0);
+        VrpnTrackerRos::dead_zones_.push_back(false);
+
+        // Find tracker name
+        for(unsigned int i=0; i < VrpnTrackerRos::dead_zone_tracker_names_.size(); i++){
+            if (tracker->tracker_name.compare(VrpnTrackerRos::dead_zone_tracker_names_[i]) == 0){
+                found = true;
+                index_i = i;
+            }
+        }
+
+    }
+
+//    std::cout << "Frequency: " << 1.0 / (ros::Time::now() - VrpnTrackerRos::previous_times_[index_i]).toSec() << std::endl;
+
+    if (dead_zone_pub->getNumSubscribers() > 0)
+    {
+        if ((ros::Time::now() - VrpnTrackerRos::previous_times_[index_i]).toSec() > (1.0 / VrpnTrackerRos::MIN_FREQUENCY)){
+//            if (VrpnTrackerRos::dead_zone_counters_[index_i] < VrpnTrackerRos::MIN_COUNTER)
+//                VrpnTrackerRos::dead_zone_counters_[index_i]++;
+//            else
+             VrpnTrackerRos::dead_zone_counters_[index_i] = VrpnTrackerRos::MIN_COUNTER;
+             VrpnTrackerRos::dead_zones_[index_i] = true;
+        }
+        else{
+            if (VrpnTrackerRos::dead_zone_counters_[index_i] > 0)
+                VrpnTrackerRos::dead_zone_counters_[index_i]--;
+            else
+                VrpnTrackerRos::dead_zones_[index_i] = false;
+        }
+        tracker->dead_zone_msg_.data = VrpnTrackerRos::dead_zones_[index_i];
+        dead_zone_pub->publish(tracker->dead_zone_msg_);
+    }
+
+    // Update the previous time
+    VrpnTrackerRos::previous_times_[index_i] = ros::Time::now();
 
     if (tracker->broadcast_tf_)
     {
